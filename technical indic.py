@@ -27,13 +27,30 @@ ticker = '  ' # Write the name of the stock whose indicator values you want to c
 df = yf.download(tickers=ticker, start=start_date, end=end_date)
 
 ################    RSI    ################
-def calculate_rsi(series, period=14):
-    delta = series['Close'].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-    rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
+def calculate_rsi(data, period=14):
+    """TradingView ile uyumlu RSI hesaplama"""
+
+    def rma(series, period):
+        """Running Moving Average (RMA) hesaplama"""
+        alpha = 1 / period
+        rma_values = [series[0]]
+        for price in series[1:]:
+            rma_values.append(alpha * price + (1 - alpha) * rma_values[-1])
+        return np.array(rma_values)
+
+    
+    delta = data['Close'].diff()
+    gain = np.where(delta > 0, delta, 0)
+    loss = np.where(delta < 0, -delta, 0)
+
+    
+    avg_gain = rma(gain, period)
+    avg_loss = rma(loss, period)
+
+    rs = avg_gain / avg_loss
+    rsi = np.where(avg_loss == 0, 100, 100 - (100 / (1 + rs)))
     return rsi
+
 df['RSI'] = calculate_rsi(df, period=14)
 
 ################    ATR    ################
